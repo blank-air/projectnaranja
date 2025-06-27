@@ -13,7 +13,7 @@ from qbreader import Difficulty, Category, Tossup, Bonus, AnswerJudgement, Packe
 # --- Page and State Configuration ---
 
 st.set_page_config(
-    page_title="Project Naranja - Knowledge Acquisition Tool",
+    page_title="AI Quizbowl Trainer & Search",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -59,7 +59,6 @@ custom_css = """
         padding: 0.5rem 1rem;
         color: #495057;
     }
-    /* FIX: More subtle highlight for selected tab */
     .st-emotion-cache-1r4qj8v input:checked + div {
         background-color: transparent !important; /* Make background transparent */
         color: #007bff !important;
@@ -67,7 +66,6 @@ custom_css = """
         border: none !important; 
     }
     
-    /* FIX: Remove highlight from sidebar radio buttons */
     div[data-testid="stRadio"] label {
         background-color: transparent !important;
         padding: 0.5rem;
@@ -209,21 +207,26 @@ def get_set_list():
     return qbr.set_list()
 
 
-def display_explanation_section(prompt):
-    """Fetches and displays the AI explanation in a container."""
-    with st.spinner("Generating explanation..."):
-        data = get_ai_structured_explanation(prompt)
-        if data:
-            with st.container(border=True):
-                query = data.get('image_search_query', 'book')
-                google_image_search_url = f"https://www.google.com/search?tbm=isch&q={query.replace(' ', '+')}"
-                st.link_button(f"🖼️ Search for images of '{query}'", google_image_search_url)
+def display_explanation_section(prompt, button_key):
+    """Handles the display of the AI explanation section for a given button."""
+    if st.button("🧠", key=button_key, help="Get AI Explanation"):
+        # Toggle the visibility state
+        st.session_state[f'explain_{button_key}'] = not st.session_state.get(f'explain_{button_key}', False)
+    
+    if st.session_state.get(f'explain_{button_key}', False):
+        with st.spinner("Generating explanation..."):
+            data = get_ai_structured_explanation(prompt)
+            if data:
+                with st.container(border=True):
+                    query = data.get('image_search_query', 'book')
+                    google_image_search_url = f"https://www.google.com/search?tbm=isch&q={query.replace(' ', '+')}"
+                    st.link_button(f"🖼️ Search for images of '{query}'", google_image_search_url)
 
-                st.markdown(data.get("explanation", "No explanation available."))
-                if data.get("recommended_reading"):
-                    st.markdown("**Further Reading:**")
-                    for link in data["recommended_reading"]:
-                        st.markdown(f"- [{link['title']}]({link['url']})")
+                    st.markdown(data.get("explanation", "No explanation available."))
+                    if data.get("recommended_reading"):
+                        st.markdown("**Further Reading:**")
+                        for link in data["recommended_reading"]:
+                            st.markdown(f"- [{link['title']}]({link['url']})")
 
 # Define maps here to be accessible by get_new_question
 difficulty_map = {"Middle School": Difficulty.MS, "High School (Easy)": Difficulty.HS_EASY, "High School (Regular)": Difficulty.HS_REGS, "High School (Hard)": Difficulty.HS_HARD, "High School (Nationals)": Difficulty.HS_NATS, "College (Easy)": Difficulty.ONE_DOT, "College (Medium)": Difficulty.TWO_DOT, "College (Hard)": Difficulty.THREE_DOT, "College (Hardest)": Difficulty.FOUR_DOT}
@@ -270,7 +273,7 @@ if 'packet_data' not in st.session_state: st.session_state.packet_data = None
 if 'packet_set_name' not in st.session_state: st.session_state.packet_set_name = None
 
 # --- UI Layout ---
-st.title("Project Naranja - Knowledge Acquisition Tool")
+st.title("Project Accumula - Knowledge Acquisition Tool")
 
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Trainer"
@@ -285,7 +288,7 @@ active_tab = st.radio(
 )
 
 # ==============================================================================
-# --- TRAINER TAB ---
+# --- AI TRAINER TAB ---
 # ==============================================================================
 if active_tab == "Trainer":
     with st.sidebar:
@@ -374,7 +377,7 @@ if active_tab == "Trainer":
                 st.markdown(f"**Correct Answer:** {question.answer}", unsafe_allow_html=True)
                 with st.expander("Show Overall Answer Summary"):
                     prompt = f'Act as a subject matter expert. Provide a detailed, in-depth encyclopedic summary of "{question.answer_sanitized}". Use Markdown bolding to highlight key terms. Also provide a concise, 2-3 word search term for a relevant image and 2-3 links for further reading. Prioritize links from Wikipedia and Encyclopedia Britannica.'
-                    display_explanation_section(prompt)
+                    display_explanation_section(prompt, f"overall_tossup_{question.set.name}_{question.number}")
                 st.subheader("Clue-by-Clue Breakdown")
                 doc = nlp(question.question_sanitized)
                 review_sentences = [sent.text for sent in doc.sents]
@@ -382,17 +385,17 @@ if active_tab == "Trainer":
                     if not sentence: continue
                     with st.expander(f"**Clue {i+1}:** *{sentence.strip()}*"):
                         prompt = f'The overall answer to a quizbowl question is "{question.answer_sanitized}". Your role is a subject-matter expert. Your task is to provide a detailed, in-depth explanation of the specific names, places, or concepts within this single clue: "{sentence.strip()}". Explain how they connect to the main answer. Crucially, use Markdown bolding (**text**) to highlight the most important key terms. Do NOT repeat general information about the main answer. Provide a search query and reading links specific to this clue\'s specific content. Prioritize links from Wikipedia and Encyclopedia Britannica.'
-                        display_explanation_section(prompt)
+                        display_explanation_section(prompt, f"tossup_{question.set.name}_{question.number}_clue_{i}")
             else: # Bonus
                 with st.expander("Show Overall Bonus Topic Summary"):
                     prompt = f'Act as a subject matter expert. The lead-in to a bonus is: "{question.leadin}". Provide a detailed, in-depth summary of the likely overall topic. Use Markdown bolding to highlight key terms. Also provide a concise, 2-3 word search term for a relevant image and reading links. Prioritize links from Wikipedia and Encyclopedia Britannica.'
-                    display_explanation_section(prompt)
+                    display_explanation_section(prompt, f"overall_bonus_{question.set.name}_{question.number}")
                 st.subheader("Part-by-Part Breakdown")
                 for i in range(len(question.parts)):
                     with st.expander(f"**Part {i+1} Review**"):
                         st.markdown(f"**Question:** {question.parts[i]}"); st.markdown(f"**Correct Answer:** {question.answers[i]}", unsafe_allow_html=True)
                         prompt = f'Act as a subject matter expert. A quizbowl question asks: "{question.parts[i]}". The correct answer is "{question.answers[i]}". Provide a very detailed, in-depth, encyclopedic explanation of the answer in the context of the question. Use Markdown bolding to highlight key terms. Do not repeat the question itself in your explanation. Also provide a search query and reading links for "{question.answers[i]}". Prioritize links from Wikipedia and Encyclopedia Britannica.'
-                        display_explanation_section(prompt)
+                        display_explanation_section(prompt, f"bonus_{question.set.name}_{question.number}_part_{i}")
             
             if st.button("Next Question →", on_click=get_new_question, use_container_width=True):
                 get_new_question()
