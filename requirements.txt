@@ -1,7 +1,6 @@
-streamlit
+streamlit==1.33.0
 requests
-spacy
+spacy==3.7.2
 python-dotenv
 qbreader
-# Add the direct link to the spaCy model
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
