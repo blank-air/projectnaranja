@@ -167,8 +167,9 @@ def get_ai_structured_explanation(prompt: str) -> dict:
     if not api_key:
         st.error("Error: GEMINI_API_KEY not found. Please set it in your .env file.", icon="🚨")
         return {}
-
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    
+    # FIX: Corrected model name to the latest available one
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     schema = {
         "type": "OBJECT", "properties": {
             "explanation": {"type": "STRING", "description": "The detailed explanation of the topic."},
